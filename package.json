@@ -9,6 +9,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "dayjs": "^1.11.13",
     "discord.js": "^14.16.2"
   }
 }
