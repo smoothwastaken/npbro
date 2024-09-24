@@ -18,6 +18,20 @@ interface EvenementAgenda {
 }
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+const MOIS = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+];
 const ABREVIATIONS_JOURS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 const analyserHeure = (heure: string): string =>
@@ -25,10 +39,6 @@ const analyserHeure = (heure: string): string =>
 
 const extraireEvenements = (sortieStandard: string): EvenementAgenda[] => {
   return sortieStandard
-    .replace(
-      "Loading agenda from 22-09-2024 to 29-09-2024...\n[36mDay[39m                       [36mSchedule[39m               [36mRoom(s)[39m               [36mName[39m                                                [36mTeacher[39m       \n",
-      ""
-    )
     .split("\n")
     .filter((ligne) => ligne.includes("TOULOUSE"))
     .map((ligne) => {
@@ -40,10 +50,43 @@ const extraireEvenements = (sortieStandard: string): EvenementAgenda[] => {
     });
 };
 
+const formatTitle = (rawJour: string): string => {
+  const [semaineJour, mois, jour, annee] = rawJour.split(" ");
+  const date = new Date(`${mois} ${jour} ${annee}`);
+  let jourSemaine = "";
+  switch (semaineJour) {
+    case "Mon,":
+      jourSemaine = "Lundi";
+      break;
+    case "Tue,":
+      jourSemaine = "Mardi";
+      break;
+    case "Wed,":
+      jourSemaine = "Mercredi";
+      break;
+    case "Thu,":
+      jourSemaine = "Jeudi";
+      break;
+    case "Fri,":
+      jourSemaine = "Vendredi";
+      break;
+    default:
+      break;
+  }
+
+  const moisFr = MOIS[date.getMonth()];
+  return `${jourSemaine} ${jour.replace(",", "")} ${moisFr} ${annee}`;
+};
+
 const creerEmbed = (jour: string, evenements: EvenementAgenda[]): Embed => {
+  console.log("Events: " + evenements);
   const embed = new EmbedBuilder()
-    .setColor(Math.floor(Math.random() * 16777215).toString(16))
-    .setTitle(jour);
+    .setColor(
+      `#${Math.floor(Math.random() * 16777215)
+        .toString(16)
+        .padStart(6, "0")}`
+    )
+    .setTitle(formatTitle(evenements[0].jour));
 
   if (evenements.length > 0) {
     const evenement = evenements[0];
@@ -78,13 +121,17 @@ const creerEmbeds = (evenements: EvenementAgenda[]): Embed[] => {
 
 const executerCommandeAgenda = (): Promise<string> => {
   return new Promise((resolve, reject) => {
-    exec("myges agenda", (erreur: string, sortieStandard: string) => {
-      if (erreur) {
-        reject(`Erreur d'exécution : ${erreur}`);
-      } else {
-        resolve(sortieStandard);
+    exec(
+      "myges agenda",
+      // { timeout: 5000 },
+      (erreur: string, sortieStandard: string) => {
+        if (erreur) {
+          reject(`Erreur d'exécution : ${erreur}`);
+        } else {
+          resolve(sortieStandard);
+        }
       }
-    });
+    );
   });
 };
 
@@ -94,21 +141,24 @@ module.exports = {
     .setDescription("Donne l'agenda de la semaine"),
 
   async execute(interaction: CommandInteraction) {
+    await interaction.deferReply({ ephemeral: true });
+
     try {
       const sortieStandard = await executerCommandeAgenda();
       const evenements = extraireEvenements(sortieStandard);
       const embeds = creerEmbeds(evenements);
 
-      await interaction.reply({
+      console.log(`[INFO] Agenda récupéré : ${evenements.length} événements`);
+
+      await interaction.editReply({
         content: "Voici l'agenda de la semaine :",
-        ephemeral: true,
         embeds: embeds,
       });
+      console.log(`[INFO] Agenda envoyé à ${interaction.user.tag}`);
     } catch (erreur) {
       console.error(erreur);
-      await interaction.reply({
+      await interaction.editReply({
         content: "Une erreur est survenue lors de la récupération de l'agenda.",
-        ephemeral: true,
       });
     }
   },
